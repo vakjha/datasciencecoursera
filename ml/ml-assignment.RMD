@@ -1,0 +1,84 @@
+---
+title: "ML Assignment"
+author: "vakjha"
+date: "Friday, April 24, 2015"
+output: html_document
+---
+##Introduction 
+
+people regularly quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to identify how well they are doing the exercises.  
+
+Data for this analysis has been obtained from http://groupware.les.inf.puc-rio.br/har (section on the Weight Lifting Exercise Dataset) and has been split into two sets Test and Train. We will use Train data for building the model and cross validation. 
+
+##Data Preperation
+
+First we undertake some basic data preperation activities as below.
+
+Below transformations are identified on the data set by working with the summary, head and str functions. 
+
+  1. Remove NA's 
+  2. Remove experiment identifiers as this was not required for prediction. 
+
+```{r,message=FALSE,warning = FALSE}
+library(caret) 
+library(randomForest) 
+
+# Use the training file for follow up analysis 
+training <- read.csv("./training.csv", na.strings= c("NA",""," ")) 
+# clean the data by removing columns with NAs etc 
+training_NAs <- apply(training, 2, function(x) {sum(is.na(x))}) 
+training_clean <- training[,which(training_NAs == 0)]  
+
+# remove identifier columns such as name, timestamps etc 
+training_clean <- training_clean[8:length(training_clean)]  
+```
+
+Thereafter, once that data has been cleaned, we split this training data into two set for cross validation purposes. 30% of this data is used for cross validation on the model. 
+
+```{r}
+inTrain <- createDataPartition(y = training_clean$classe, p = 0.7, list = FALSE) 
+training <- training_clean[inTrain, ] 
+crossval <- training_clean[-inTrain, ] 
+```
+
+##Model Build 
+
+Random forest is selected as the data set is not large and the random forest based approach is very accurate. Care should be taken to avoid overfitting. This model provided an OOB error rate for just over .50 and its used for subsequent processing.  
+
+```{r}
+model <- randomForest(classe ~ ., data = training) 
+model
+```
+
+
+##Cross Validation
+
+Run cross validations on the data using the left over 30% of the data and check the results using the confusion matrix. 
+
+```{r}
+predictCrossVal <- predict(model, crossval) 
+```
+
+##Expected out of sample errors
+
+Overall, The model has an accuracy of 99.66% with 95% confidence interval of (0.9948, 0.9979)on the cross validation set and that should be the expected out of sample accuracy. Additionaly the model also has a high specificity and sensitivity. 
+
+```{r}
+confusionMatrix(crossval$classe, predictCrossVal)
+```
+
+##Predictions and conclusions 
+
+This model is now applied to the test data,loaded earlier and the results of the prediction are below for review. 
+
+```{r}
+test <- read.csv("./testing.csv", na.strings= c("NA",""," ")) 
+test_NAs <- apply(test, 2, function(x) {sum(is.na(x))}) 
+test_clean <- test[,which(test_NAs == 0)] 
+test_clean <- test_clean[8:length(test_clean)]
+predictTest <- predict(model,test_clean) 
+answers<- predictTest
+answers
+```
+
+
